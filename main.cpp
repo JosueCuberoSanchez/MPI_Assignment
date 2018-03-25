@@ -1,6 +1,10 @@
 #include <mpi.h>
 #include <stdio.h>
 #include <math.h>
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <cstdlib>
 
 using namespace std;
 
@@ -25,11 +29,32 @@ int main(int argc,char **argv)
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (myid == 0) {
-        //crear estructuras de datos
-        //asignar trabajos
-        cout << "SOY 0" << endl;
+        //data structures in general
+        int n; //n entered by the user
+        cout << "Digite el n" << endl;
+        cin >> n;
+        int M[n][n];
+        int V[n];
+        int Q[n];
+        int P[n];
+        int B[n][n];
+        int tp;
+        //data structures used by processes to calculate and store temporal data
+        bool columnPrimes[n]; //boolean vector to store if the ieth element is prime
+        int multiplicationResult; //result that will be used to create Q
+        int tpProcess; //total of primes for a specified process
+
+        for(int i=0;i<n;i++){
+            for(int j=0;j<n;j++){
+                M[i][j] = rand() % 9 + 1; //fill M with random ints from 0 to 9
+            }
+            V[i] = rand() % 4 + 1; //fill V with random ints from 0 to 5
+        }
+
+        //do scatter
+
     }
-    
+
     //hacer operaciones
 
 
