@@ -31,6 +31,9 @@ int main(int argc,char **argv) {
     double startwtime, endwtime;
     int  namelen;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
+    // Arrays for the Scatter
+    int* sendcounts_B;
+    int* displs_B;
 
     MPI_Init(&argc,&argv);
 
@@ -78,10 +81,32 @@ int main(int argc,char **argv) {
             V[i] = rand() % 4 + 1; //fill V with random ints from 0 to 5
         }
 
-        //do scatter: send n/p+[1|2] rows, V and n.
+        //Initialize the arrays for the Scatter
+        sendcounts_B = new int[numprocs];
+        displs_B = new int[numprocs];
 
+        //  Each process will send an amount of rows based on the result of
+        //  dividing the matrix's dimension by the number of processes plus
+        //  one or two extra rows (depending on whether it is on eihter the top
+        //  or bottom row of the matrix or not, respectively)
+        //  The displacement is going to be similar, while also being
+        //  multiplied by their entry's index number, which represents each row.
+        //  It will have a row less of displacement, that in order to send the
+        //  previous row as well.
+        for (int i = 0 ; i < numprocs ; i++) {
+            sendcounts_B[i]= ((n*n)/numprocs)+(2*n);
+            displs_B[i] = (((n*n)/numprocs)-n)*i;
+        }
+        // Taking out one row for the borders of the matrix
+        // Putting a displacement of 0 for the first row
+        sendcounts_B[0] -= n;
+        sendcounts_B[n-1] -= n;
+        displs_B[0] = 0;
     }
 
+    //do scatter: send n/p+[1|2] rows, V and n.
+    // MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, rcvBuf(its size according to it being on either the top or bottom row, or not), n*n, MPI_INT, 0, MPI_COMM_WORLD);
+    //MPI_Bcast(V, n, MPI_INT, 0, MPI_COMM_WORLD); //(se me ocurre que el V se puede enviar con un simple Broadcast, como no hay que partirlo)
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD); //other processes should wait for process 0 to set all structures
 
     //The next data structures are tests, because process should receive them from root
