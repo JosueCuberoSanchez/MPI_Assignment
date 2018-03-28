@@ -104,10 +104,23 @@ int main(int argc,char **argv) {
         displs_B[0] = 0;
     }
 
-    //do scatter: send n/p+[1|2] rows, V and n.
-    // MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, rcvBuf(its size according to it being on either the top or bottom row, or not), n*n, MPI_INT, 0, MPI_COMM_WORLD);
-    //MPI_Bcast(V, n, MPI_INT, 0, MPI_COMM_WORLD); //(se me ocurre que el V se puede enviar con un simple Broadcast, como no hay que partirlo)
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD); //other processes should wait for process 0 to set all structures
+    MPI_Bcast(V, n, MPI_INT, 0, MPI_COMM_WORLD);
+
+    /*do scatter: send n/p+[1|2] rows, V and n.*/
+    //Array that represents a slice of matrix M, used to compute matrix B
+    int *M_Slice_B;
+
+    // Size of dividing the matrix's dimension by the number of processes,
+    // plus an extra row for the ones either on the top or bottom rows,
+    // and plus two extra rows for the other rows
+    if (myid == 0 || myid == n-1) {
+        M_Slice_B = new int[((n*n)/numprocs)+n];
+    }
+    else {
+      M_Slice_B = new int[((n*n)/numprocs)+(2*n)];
+    }
+    MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, M_Slice_B, n*n, MPI_INT, 0, MPI_COMM_WORLD);
 
     //The next data structures are tests, because process should receive them from root
     int rowsReceived = 3; //HARDCODED
