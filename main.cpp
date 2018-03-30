@@ -8,21 +8,6 @@
 
 using namespace std;
 
-typedef struct rootSendingStruct { //struct that root process will send to other processes
-    int n; //n given by user
-    int rows[]; //corresponding rows
-    int V[]; //V array
-    int rowNumbers[]; //process numbers, not same as process id, because assignation could slow the performance
-} rootSendingStruct;
-
-typedef struct processSendingStruct { //struct that other processes will send to root
-    int tp; //total prime numbers
-    int rowNumbers[]; //same process numbers received
-    int multiplicationResults[];
-    int bRows[]; //rows for B matrix
-    bool columnPrimes[];
-} processSendingStruct;
-
 bool isPrime(int number);
 
 int main(int argc,char **argv) {
@@ -34,23 +19,12 @@ int main(int argc,char **argv) {
     // Arrays for the Scatter
     int* sendcounts_B;
     int* displs_B;
+    int* M;
+    int* V;
 
     MPI_Init(&argc,&argv);
 
     MPI_Comm_size(MPI_COMM_WORLD,&numprocs);
-
-    /* create a type for struct car*/ //Esta parte me falta bretearla, es crear los structs de arriba. Si le llega, la hace :p
-    /*const int    nitems=2;
-    int          blocklengths[2] = {1,1};
-    MPI_Datatype types[2] = {MPI_INT, MPI_INT};
-    MPI_Datatype mpi_processSendingStruct;
-    MPI_Aint     offsets[2];
-
-    offsets[0] = offsetof(processSendingStruct, tp);
-    offsets[1] = offsetof(processSendingStruct, rowNumbers);
-
-    MPI_Type_create_struct(nitems, blocklengths, offsets, types, &mpi_processSendingStruct);
-    MPI_Type_commit(&mpi_processSendingStruct);*/
 
     MPI_Comm_rank(MPI_COMM_WORLD,&myid);
 
@@ -61,10 +35,12 @@ int main(int argc,char **argv) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (myid == 0) {
+        int* array; //ejemplo
+        array=new int[10];
         cout << "Digite el n" << endl;
         cin >> n;
-        int M[n*n];
-        int V[n];
+        M = new int[n*n];
+        V = new int[n];
         int Q[n];
         int P[n];
         int B[n*n];
