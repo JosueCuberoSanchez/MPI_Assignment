@@ -20,7 +20,7 @@ bool isPrime(int number);
 int main(int argc,char **argv) {
     int myid, numprocs, numthreads;
     int n=0; //n entered by the user
-    double startwtime, startwInputtime, endwtime;
+    double startwtime, startwInputtime, endwInputtime, endwtime;
     srand (time(NULL)); //initialize random seed
     int  namelen;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
@@ -188,6 +188,7 @@ int main(int argc,char **argv) {
 
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid == 0) {
+      endwInputtime = MPI_Wtime();
       //Prepare output files, if n was greater than 100, otherwise use stdout
         streambuf* outBufM;
         streambuf* outBufV;
@@ -281,8 +282,9 @@ int main(int argc,char **argv) {
         }
 
         endwtime = MPI_Wtime();
-        cout << endl << "  Tiempo total de ejecución: " << (endwtime-startwtime) << endl;
-        cout << "  Tiempo total desde que se ingresó n: " << (endwtime-startwInputtime) << endl << endl;
+        cout << "********************" << endl <<  "Tiempos" << endl << "********************" << endl << endl;
+        cout << "  Tiempo total de ejecución: " << (endwtime-startwtime) << " segundos" << endl;
+        cout << "  Tiempo total sin desplegar datos: " << (endwInputtime-startwInputtime) << " segundos" << endl << endl;
         cout << "====================" << endl <<  "FIN DE LA EJECUCIÓN" << endl << "====================" << endl;
         fflush( stdout );
     }
