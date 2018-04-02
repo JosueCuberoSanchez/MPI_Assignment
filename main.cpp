@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <iostream>
+#include <string.h>
 #include <string>
 #include <sstream>
 #include <cstdlib>
@@ -16,6 +17,7 @@ using namespace std;
 **/
 
 bool isPrime(int number);
+inline const char * const boolToString(bool b);
 
 int main(int argc,char **argv) {
     int myid, numprocs, numthreads;
@@ -44,14 +46,21 @@ int main(int argc,char **argv) {
 
     if (myid == 0) {
         startwtime = MPI_Wtime();
-        int* array; //ejemplo
-        array=new int[10];
         cout << "Digite el n" << endl;
         cin >> n;
+
+        if(n%numprocs != 0){
+            cout << "El numero de procesos debe ser multiplo de n" << endl;
+            return 0;
+        }
 
         startwInputtime = MPI_Wtime();
 
         M = new int[n*n];
+        if(M == NULL){
+            cout << "Error de asignación de memoria" << endl;
+            return 0;
+        }
 
         for(int i=0;i<n;i++){
             for(int j=0;j<n;j++){
@@ -61,7 +70,15 @@ int main(int argc,char **argv) {
 
         //Initialize the arrays for the Scatter
         sendcounts_B = new int[numprocs];
+        if(sendcounts_B == NULL){
+            cout << "Error de asignación de memoria" << endl;
+            return 0;
+        }
         displs_B = new int[numprocs];
+        if(displs_B == NULL){
+            cout << "Error de asignación de memoria" << endl;
+            return 0;
+        }
 
         //  Each process will send an amount of rows based on the result of
         //  dividing the matrix's dimension by the number of processes plus
@@ -123,68 +140,56 @@ int main(int argc,char **argv) {
     else {
       M_Slice_B = new int[(n*n/numprocs) + (2*n)];
     }
+    if(M_Slice_B == NULL){
+        cout << "Error de asignación de memoria" << endl;
+        return 0;
+    }
 
     MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, M_Slice_B, n*n, MPI_INT, 0, MPI_COMM_WORLD);
-
-
-    // cout << "Filas de M recibidas:" << endl;
-	  //  if (myid==0 || myid==numprocs-1) {
-    // 		for (int i=0; i<n * n/numprocs + n; i++) {
-    // 			if (i%n==0 && i!=0) {
-    // 				cout << endl;
-    // 			}
-    //       cout << M_Slice_B[i] << " ";
-    // 		}
-    //     cout << endl;
-    // 	}
-    // 	else {
-    // 		for (int i=0; i<n * n/numprocs + 2*n; i++) {
-    // 			if (i%n==0 && i!=0) {
-    // 				cout << endl;
-    // 			}
-    // 			cout << M_Slice_B[i] << " ";
-    // 		}
-    // 		cout << endl;
-    // 	}
-
-    //The next data structures are tests, because process should receive them from root
-    int rowsReceived = 3; //HARDCODED
-    int rowNumbers[rowsReceived]; //row numbers.
-    int nReceived = n; //this is n, but root should send it to the process HARDCODED
-    int numRows;
-    if(rowNumbers[0] == 0 || rowNumbers[rowsReceived] == n){
-        numRows = rowsReceived+1; //if it is first or last row, it will receive just an extra row.
-    } else {
-        numRows = rowsReceived+2; //if it is another row, it will receive 2 extra rows.
-    }
-    int rows[numRows];
-
-    for(int i=0;i<nReceived;i++){ //this for is just for HARDCODED values
-        for(int j=0;j<nReceived;j++){
-            rows[i*nReceived + j] = rand() % 9 + 1;
+    /*string rowss = "";
+    if (myid==0 || myid==numprocs-1) {
+        for (int i=0; i<n * n/numprocs + n; i++) {
+            if (i%n==0 && i!=0) {
+                cout << endl;
+            }
+            rowss = rowss + to_string(static_cast<long long int>(M_Slice_B[i])) + "-";
+            //cout << M_Slice_B[i] << " ";
         }
+     //cout << endl;
     }
+    else {
+        for (int i=0; i<n * n/numprocs + 2*n; i++) {
+            if (i%n==0 && i!=0) {
+                cout << endl;
+            }
+            rowss = rowss + to_string(static_cast<long long int>(M_Slice_B[i])) + "-";
+            //cout << M_Slice_B[i] << " ";
+        }
+        //cout << endl;
+    }
+    cout << "Filas de M recibidas por " << myid << " :" << rowss << endl;*/
 
-    int vReceived[nReceived]; //V received
+
     //The next variables are built by processes and sent to root process. Variable row is sent too.
-    bool columnPrimesToSend[numprocs/nReceived]; //array to send if the column number is a prime
-    int multiplicationResults[rowsReceived]; //results of array multiplication
-    int tpToSend = 0;
-    int bRows[rowsReceived]; //this will hold results for B matrix
+    bool columnPrimesToSend[n*(n/numprocs)]; //array to send if the column number is a prime
+    int multiplicationResults[n/numprocs]; //results of array multiplication
+    int tpToSend = 0; //total prime numbers
+    int bRows[n*(n/numprocs)]; //this will hold rows results for B matrix
     int number;
-    for(int i=0;i<nReceived;i++){ //process and calculate all
-        for(int j=0;j<nReceived;j++){
-            number = rows[i*nReceived + j];
+    for(int i=0;i<n/numprocs;i++){ //process and calculate all
+        for(int j=0;j<n;j++){
+            number = M_Slice_B[i*n + j];
             if(isPrime(number)){
                 tpToSend++;
-                columnPrimesToSend[i*nReceived + j] = true;
+                columnPrimesToSend[i*n + j] = true;
             } else {
-                columnPrimesToSend[i*nReceived + j] = false;
+                columnPrimesToSend[i*n + j] = false;
             }
             //multiply vector by matrix rows pending
             //build B pending
         }
     }
+    
 
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid == 0) {
@@ -295,7 +300,7 @@ int main(int argc,char **argv) {
 
 bool isPrime(int number){
     bool isPrime = true;
-    if (number == 2 || number == 3) {
+    if (number == 1 || number == 2 || number == 3) {
         isPrime = true;
     } else if((number % 2 == 0) || (number % 3 == 0)){
         isPrime = false;
@@ -311,4 +316,8 @@ bool isPrime(int number){
         }
     }
     return isPrime;
+}
+
+inline const char * const boolToString(bool b) {
+    return b ? "true" : "false";
 }
