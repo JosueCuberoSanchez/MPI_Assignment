@@ -9,12 +9,19 @@
 
 using namespace std;
 
+/**
+* Josué Cubero (B4), Daniel González (B42991)
+* Tarea Programada 1 - Arquitectura de Computadoras (CI-1323)
+* UCR - I Semestre 2018
+**/
+
 bool isPrime(int number);
 
 int main(int argc,char **argv) {
     int myid, numprocs, numthreads;
     int n=0; //n entered by the user
-    double startwtime, endwtime;
+    double startwtime, startwInputtime, endwtime;
+    srand (time(NULL)); //initialize random seed
     int  namelen;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
     // Arrays for the Scatter
@@ -36,11 +43,14 @@ int main(int argc,char **argv) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (myid == 0) {
+        startwtime = MPI_Wtime();
         int* array; //ejemplo
         array=new int[10];
-        // cout << "Digite el n" << endl;
-        // cin >> n;
-        n = 3;
+        cout << "Digite el n" << endl;
+        cin >> n;
+
+        startwInputtime = MPI_Wtime();
+
         M = new int[n*n];
 
         for(int i=0;i<n;i++){
@@ -178,73 +188,102 @@ int main(int argc,char **argv) {
 
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid == 0) {
-      //Prepare output file, if n was greater than 100, otherwise use stdout
-        streambuf* outBuf;
-        ofstream of;
+      //Prepare output files, if n was greater than 100, otherwise use stdout
+        streambuf* outBufM;
+        streambuf* outBufV;
+        streambuf* outBufQ;
+        streambuf* outBufP;
+        streambuf* outBufB;
+        ofstream ofM;
+        ofstream ofV;
+        ofstream ofQ;
+        ofstream ofP;
+        ofstream ofB;
 
         if (n > 100) {
-          of.open("Matrices_y_Vectores.txt");
-          outBuf = of.rdbuf();
+          ofM.open("M.txt");
+          ofV.open("V.txt");
+          ofQ.open("Q.txt");
+          ofP.open("P.txt");
+          ofB.open("B.txt");
+          outBufM = ofM.rdbuf();
+          outBufV = ofV.rdbuf();
+          outBufQ = ofQ.rdbuf();
+          outBufP = ofP.rdbuf();
+          outBufB = ofB.rdbuf();
         }
         else {
-          outBuf = cout.rdbuf();
+          outBufM = cout.rdbuf();
+          outBufV = cout.rdbuf();
+          outBufQ = cout.rdbuf();
+          outBufP = cout.rdbuf();
+          outBufB = cout.rdbuf();
         }
-        ostream out(outBuf);
+        ostream outM(outBufM);
+        ostream outV(outBufV);
+        ostream outQ(outBufQ);
+        ostream outP(outBufP);
+        ostream outB(outBufB);
 
         //Results
         cout << "====================" << endl <<  "FIN DE LA EJECUCIÓN" << endl << "====================" << endl;
         cout << "  Valor de n: " << n << endl;
         cout << "  Número de procesos: " << numprocs << endl << endl;
 
-        cout << "  Número total de primos en M: " << tp << endl;
-        cout << "  Tiempo total de ejecución: " << 1 << endl;
-        cout << "  Tiempo total desde que se ingresó n: " << 2 << endl << endl;
+        cout << "  Número total de primos en M: " << tp << endl << endl;
 
 
-        out << "********************" << endl <<  "Matrices y Vectores" << endl << "********************" << endl << endl;
+        cout << "********************" << endl <<  "Matrices y Vectores" << endl << "********************" << endl << endl;
 
-        out << "Matriz M:" << endl << "----" << endl;
+        outM << "Matriz M:" << endl << "----" << endl;
         for (int i=0; i<n; i+=1) {
             for (int j=0; j<n; j+=1) {
-                out << M[i*n+j] << " ";
+                outM << M[i*n+j] << " ";
             }
-            out << endl;
+            outM << endl;
         }
-        out << endl;
+        outM << endl;
 
-        out << "Vector V:" << endl << "----" << endl;
+        outV << "Vector V:" << endl << "----" << endl;
         for (int i=0; i<n; i+=1) {
-            out << V[i] << " ";
+            outV << V[i] << " ";
         }
-        out << endl << endl;
+        outV << endl << endl;
 
-        out << "Vector Q:" << endl << "----" << endl;
+        outQ << "Vector Q:" << endl << "----" << endl;
         for (int i=0; i<n; i+=1) {
-            out << Q[i] << " ";
+            outQ << Q[i] << " ";
         }
-        out << endl << endl;
+        outQ << endl << endl;
 
-        out << "Vector P:" << endl << "----" << endl;
+        outP << "Vector P:" << endl << "----" << endl;
         for (int i=0; i<n; i+=1) {
-            out << P[i] << " ";
+            outP << P[i] << " ";
         }
-        out << endl << endl;
+        outP << endl << endl;
 
-        out << "Matriz B:" << endl << "----" << endl;
+        outB << "Matriz B:" << endl << "----" << endl;
         for (int i=0; i<n; i+=1) {
             for (int j=0; j<n; j+=1) {
-                out << B[i*n+j] << " ";
+                outB << B[i*n+j] << " ";
             }
-            out << endl;
+            outB << endl;
         }
-        out << endl;
+        outB << endl;
 
         if (n > 100) {
-          of.close();
-          cout << "La información de Matrices y Vectores se encuentra en el archivo \"Matrices_y_Vectores.txt\"" << endl;
+          ofM.close();
+          ofV.close();
+          ofQ.close();
+          ofP.close();
+          ofB.close();
+          cout << "La información de Matrices y Vectores se encuentra\nen archivos de texto, según sus nombres." << endl;
         }
 
         endwtime = MPI_Wtime();
+        cout << endl << "  Tiempo total de ejecución: " << (endwtime-startwtime) << endl;
+        cout << "  Tiempo total desde que se ingresó n: " << (endwtime-startwInputtime) << endl << endl;
+        cout << "====================" << endl <<  "FIN DE LA EJECUCIÓN" << endl << "====================" << endl;
         fflush( stdout );
     }
 
