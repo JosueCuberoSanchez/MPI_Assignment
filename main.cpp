@@ -12,7 +12,7 @@ bool isPrime(int number);
 
 int main(int argc,char **argv) {
     int myid, numprocs, numthreads;
-    int n; //n entered by the user
+    int n=0; //n entered by the user
     double startwtime, endwtime;
     int  namelen;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
@@ -57,6 +57,14 @@ int main(int argc,char **argv) {
             V[i] = rand() % 4 + 1; //fill V with random ints from 0 to 5
         }
 
+        cout << "Matriz M:\n================\n";
+        for (int i=0; i<n; i+=1) {
+            for (int j=0; j<n; j+=1) {
+                cout << M[i*n+j] << " ";
+            }
+            cout << endl;
+        }
+
         //Initialize the arrays for the Scatter
         sendcounts_B = new int[numprocs];
         displs_B = new int[numprocs];
@@ -70,8 +78,8 @@ int main(int argc,char **argv) {
         //  It will have a row less of displacement, that in order to send the
         //  previous row as well.
         for (int i = 0 ; i < numprocs ; i++) {
-            sendcounts_B[i]= ((n*n)/numprocs)+(2*n);
-            displs_B[i] = (((n*n)/numprocs)-n)*i;
+          sendcounts_B[i]= (n*n/numprocs) + (2*n);
+          displs_B[i] = (i*(n*n/numprocs))-n;
         }
         // Taking out one row for the borders of the matrix
         // Putting a displacement of 0 for the first row
@@ -79,10 +87,11 @@ int main(int argc,char **argv) {
         sendcounts_B[n-1] -= n;
         displs_B[0] = 0;
     }
+
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD); //other processes should wait for process 0 to set all structures
     MPI_Bcast(&V, n, MPI_INT, 0, MPI_COMM_WORLD);
-    cout << "PROCESO " << myid << endl;
+    cout << "-----\nPROCESO " << myid << endl;
     /*do scatter: send n/p+[1|2] rows, V and n.*/
     //Array that represents a slice of matrix M, used to compute matrix B
     int *M_Slice_B;
@@ -98,6 +107,25 @@ int main(int argc,char **argv) {
     }
 
     MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, M_Slice_B, n*n, MPI_INT, 0, MPI_COMM_WORLD);
+    cout << "Filas de M recibidas:\n";
+	   if (myid==0 || myid==numprocs-1) {
+    		for (int i=0; i<n * n/numprocs + n; i++) {
+    			if (i%n==0 && i!=0) {
+    				cout << endl;
+    			}
+          cout << M_Slice_B[i] << " ";
+    		}
+        cout << endl;
+    	}
+    	else {
+    		for (int i=0; i<n * n/numprocs + 2*n; i++) {
+    			if (i%n==0 && i!=0) {
+    				cout << endl;
+    			}
+    			cout << M_Slice_B[i] << " ";
+    		}
+    		cout << endl;
+    	}
 
     //The next data structures are tests, because process should receive them from root
     int rowsReceived = 3; //HARDCODED
