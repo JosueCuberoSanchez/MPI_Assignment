@@ -17,14 +17,13 @@ using namespace std;
 **/
 
 bool isPrime(int number);
-inline const char * const boolToString(bool b);
 
 int main(int argc,char **argv) {
 
     srand (time(NULL)); //initialize random seed
 
     int myid, numprocs, namelen, n, tp;
-    int* sendcounts_B, *displs_B, *M, *Q, *ColPrimes;
+    int *M, *Q, *CP, *P, *B, *M_Slice_B, *sendcounts_B, *displs_B;
     double startwtime, startwInputtime, endwInputtime, endwtime;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
 
@@ -48,7 +47,11 @@ int main(int argc,char **argv) {
         startwInputtime = MPI_Wtime();
 
         M = new int[n*n];
-        if(M == NULL){
+        Q = new int[n];
+        CP = new int[n*n];
+        P = new int[n];
+        B = new int[n*n];
+        if(M == NULL || Q == NULL || CP == NULL || Q == NULL || P == NULL || B == NULL){
             cout << "Error de asignación de memoria" << endl;
             return 0;
         }
@@ -57,6 +60,7 @@ int main(int argc,char **argv) {
             for(int j=0;j<n;j++){
                 M[i*n + j] = rand() % 9 + 1; //fill M with random ints from 0 to 9
             }
+            P[i] = 0;
         }
 
         //Initialize the arrays for the Scatter
@@ -90,32 +94,17 @@ int main(int argc,char **argv) {
         sendcounts_B[numprocs-1] -= n;
     }
 
-    Q = new int[n];
-    ColPrimes = new int[n*n];
-    int P[n];
-    int B[n*n];
-
     // Initialize Vector V with random ints from 0 to 5
-    int V[n];
+    int V[n]; //Tal vez se pueda meter en donde se inician todos, en el if. Pero no se me dio..
     if (myid == 0) {
-      for(int i=0;i<n;i++){
-        V[i] = rand() % 4 + 1;
-      }
-      cout << "V: (" << myid << ")" <<  endl;
-      for (int i=0; i<n; i+=1) {
-          cout << V[i] << " ";
-      }
-      cout << endl << endl;
+        for(int i=0;i<n;i++){
+            V[i] = rand() % 4 + 1;
+        }
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD); //other processes should wait for process 0 to set all structures
     MPI_Bcast(V, n, MPI_INT, 0, MPI_COMM_WORLD);
-
-
-    /*do scatter: send n/p+[1|2] rows, V and n.*/
-    //Array that represents a slice of matrix M, used to compute matrix B
-    int *M_Slice_B;
 
     // Size of dividing the matrix's dimension by the number of processes,
     // plus an extra row for the ones either on the top or bottom rows,
@@ -132,43 +121,16 @@ int main(int argc,char **argv) {
         return 0;
     }
     MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, M_Slice_B, n*n, MPI_INT, 0, MPI_COMM_WORLD);
-    /*string rowss = "";
-    if (myid==0 || myid==numprocs-1) {
-        for (int i=0; i<n * n/numprocs + n; i++) {
-            if (i%n==0 && i!=0) {
-                cout << endl;
-            }
-            rowss = rowss + to_string(static_cast<long long int>(M_Slice_B[i])) + "-";
-            //cout << M_Slice_B[i] << " ";
-        }
-     //cout << endl;
-    } else {
-        for (int i=0; i<n * n/numprocs + 2*n; i++) {
-            if (i%n==0 && i!=0) {
-                cout << endl;
-            }
-            rowss = rowss + to_string(static_cast<long long int>(M_Slice_B[i])) + "-";
-            //cout << M_Slice_B[i] << " ";
-        }
-        //cout << endl;
-    }
-    cout << "Filas de M recibidas por " << myid << " :" << rowss << endl;*/
 
-    int rows = n/numprocs;
-    //The next variables are built by processes and sent to root process. Variable row is sent too.
+    int rows = n/numprocs; //number of rows per process
     int columnPrimesToSend[n*rows]; //array to send if the column number is a prime
     int multiplicationResultsToSend[rows]; //results of array multiplication
-    int BToSend[n*rows];
+    int BToSend[n*rows]; //rows to build B on root
     for(int i=0;i<rows;i++){ //initialize results vector in order to do += later
         multiplicationResultsToSend[i] = 0;
     }
-    for (int i=0;i<n*rows;i++) { //process and calculate all
-        BToSend[i] = 0;
-    }
     int tpToSend = 0; //total prime numbers
-    int number;
-    int limit;
-    int start;
+    int number, limit, start;
     if(myid == 0) {
         limit = rows;
         start = 0;
@@ -186,7 +148,7 @@ int main(int argc,char **argv) {
                 columnPrimesToSend[(i-start)*n+j] = 0;
             }
             multiplicationResultsToSend[i-start] += (number*V[j]);
-            BToSend[(i-start)*n+j] += number;
+            BToSend[(i-start)*n+j] = number;
             if (((i*n+j)%n)>0) { //M[i,j-1], If is not in a left border
                 BToSend[(i-start)*n+j] += M_Slice_B[(i*n+j)-1];
             }
@@ -201,30 +163,24 @@ int main(int argc,char **argv) {
             }
         }
     }
-    string b = "";
-    for (int i = 0; i < rows; i++) { //process and calculate all
-        for (int j = 0; j < n; j++) {
-            b += to_string(static_cast<long long int>(columnPrimesToSend[i*n+j]));
-            b += "-";
-        }
-    }
-    cout << "Bools obtained " << myid << ": " << b << endl;
-    /*string b2 = "";
-    for (int i = 0; i < rows; i++) { //process and calculate all
-        for (int j = 0; j < n; j++) {
-            b2 += to_string(static_cast<long long int>(BToSend[i * n + j])) + "-";
-        }
-    }
-    cout << "B obtained " << myid << ": " << b2 << endl;*/
 
     MPI_Reduce(&tpToSend, &tp, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Gather(columnPrimesToSend, n*rows, MPI_INT, ColPrimes, n*rows, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gather(columnPrimesToSend, n*rows, MPI_INT, CP, n*rows, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Gather(BToSend, n*rows, MPI_INT, B, n*rows, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Gather(multiplicationResultsToSend, rows, MPI_INT, Q, rows, MPI_INT, 0, MPI_COMM_WORLD);
 
     if (myid == 0) {
-      endwInputtime = MPI_Wtime();
-      //Prepare output files, if n was greater than 100, otherwise use stdout
+
+        for (int i = 0; i < n; ++i) { //fill P
+            for (int j = 0; j < n; ++j) {
+                if(CP[i*n+j]==1){ //it was a prime number
+                    P[j]++;
+                }
+            }
+        }
+
+        endwInputtime = MPI_Wtime();
+        //Prepare output files, if n was greater than 100, otherwise use stdout
         streambuf* outBufM;
         streambuf* outBufV;
         streambuf* outBufQ;
@@ -237,23 +193,23 @@ int main(int argc,char **argv) {
         ofstream ofB;
 
         if (n > 100) {
-          ofM.open("M.txt");
-          ofV.open("V.txt");
-          ofQ.open("Q.txt");
-          ofP.open("P.txt");
-          ofB.open("B.txt");
-          outBufM = ofM.rdbuf();
-          outBufV = ofV.rdbuf();
-          outBufQ = ofQ.rdbuf();
-          outBufP = ofP.rdbuf();
-          outBufB = ofB.rdbuf();
+            ofM.open("M.txt");
+            ofV.open("V.txt");
+            ofQ.open("Q.txt");
+            ofP.open("P.txt");
+            ofB.open("B.txt");
+            outBufM = ofM.rdbuf();
+            outBufV = ofV.rdbuf();
+            outBufQ = ofQ.rdbuf();
+            outBufP = ofP.rdbuf();
+            outBufB = ofB.rdbuf();
         }
         else {
-          outBufM = cout.rdbuf();
-          outBufV = cout.rdbuf();
-          outBufQ = cout.rdbuf();
-          outBufP = cout.rdbuf();
-          outBufB = cout.rdbuf();
+            outBufM = cout.rdbuf();
+            outBufV = cout.rdbuf();
+            outBufQ = cout.rdbuf();
+            outBufP = cout.rdbuf();
+            outBufB = cout.rdbuf();
         }
         ostream outM(outBufM);
         ostream outV(outBufV);
@@ -308,12 +264,12 @@ int main(int argc,char **argv) {
         outB << endl;
 
         if (n > 100) {
-          ofM.close();
-          ofV.close();
-          ofQ.close();
-          ofP.close();
-          ofB.close();
-          cout << "La información de Matrices y Vectores se encuentra\nen archivos de texto, según sus nombres." << endl;
+            ofM.close();
+            ofV.close();
+            ofQ.close();
+            ofP.close();
+            ofB.close();
+            cout << "La información de Matrices y Vectores se encuentra\nen archivos de texto, según sus nombres." << endl;
         }
 
         endwtime = MPI_Wtime();
@@ -346,8 +302,4 @@ bool isPrime(int number){
         }
     }
     return isPrime;
-}
-
-inline const char * const boolToString(bool b) {
-    return b ? "true" : "false";
 }
