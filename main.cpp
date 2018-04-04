@@ -133,7 +133,7 @@ int main(int argc,char **argv) {
     // Size of dividing the matrix's dimension by the number of processes,
     // plus an extra row for the ones either on the top or bottom rows,
     // and plus two extra rows for the other rows
-    cout << "Soy el PROCESO " << myid << endl;
+    //cout << "Soy el PROCESO " << myid << endl;
     if (myid == 0 || myid == n-1) {
         M_Slice_B = new int[(n*n/numprocs) + n];
     }
@@ -146,7 +146,7 @@ int main(int argc,char **argv) {
     }
 
     MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, M_Slice_B, n*n, MPI_INT, 0, MPI_COMM_WORLD);
-    /*string rowss = "";
+    string rowss = "";
     if (myid==0 || myid==numprocs-1) {
         for (int i=0; i<n * n/numprocs + n; i++) {
             if (i%n==0 && i!=0) {
@@ -156,8 +156,7 @@ int main(int argc,char **argv) {
             //cout << M_Slice_B[i] << " ";
         }
      //cout << endl;
-    }
-    else {
+    } else {
         for (int i=0; i<n * n/numprocs + 2*n; i++) {
             if (i%n==0 && i!=0) {
                 cout << endl;
@@ -167,29 +166,71 @@ int main(int argc,char **argv) {
         }
         //cout << endl;
     }
-    cout << "Filas de M recibidas por " << myid << " :" << rowss << endl;*/
+    cout << "Filas de M recibidas por " << myid << " :" << rowss << endl;
 
-
+    int rows = n/numprocs;
     //The next variables are built by processes and sent to root process. Variable row is sent too.
-    bool columnPrimesToSend[n*(n/numprocs)]; //array to send if the column number is a prime
-    int multiplicationResults[n/numprocs]; //results of array multiplication
+    bool columnPrimesToSend[n*rows]; //array to send if the column number is a prime
+    int multiplicationResults[rows]; //results of array multiplication
+    int BToSend[n*rows];
+    for(int i=0;i<rows;i++){ //initialize results vector in order to do += later
+        multiplicationResults[i] = 0;
+    }
+    for (int i=0;i<n*rows;i++) { //process and calculate all
+        BToSend[i] = 0;
+    }
     int tpToSend = 0; //total prime numbers
-    int bRows[n*(n/numprocs)]; //this will hold rows results for B matrix
     int number;
-    for(int i=0;i<n/numprocs;i++){ //process and calculate all
-        for(int j=0;j<n;j++){
-            number = M_Slice_B[i*n + j];
-            if(isPrime(number)){
+    int limit;
+    int start;
+    if(myid == 0) {
+        limit = rows;
+        start = 0;
+    } else {
+        limit = rows + 1;
+        start = 1;
+    }
+    for (int i=start;i<limit;i++) { //process and calculate all
+        for (int j = 0; j < n; j++) {
+            number = M_Slice_B[i*n+j];
+            if (isPrime(number)) {
                 tpToSend++;
-                columnPrimesToSend[i*n + j] = true;
+                columnPrimesToSend[(i-start)*n+j] = true;
             } else {
-                columnPrimesToSend[i*n + j] = false;
+                columnPrimesToSend[(i-start)*n+j] = false;
             }
-            //multiply vector by matrix rows pending
-            //build B pending
+            multiplicationResults[i-start] += (number*V[j]);
+            BToSend[(i-start)*n+j] += number;
+            if (((i*n+j)%n)>0) { //M[i,j-1], If is not in a left border
+                BToSend[(i-start)*n+j] += M_Slice_B[(i*n+j)-1];
+            }
+            if ((i*n+j)>=n) {  //M[i-1,j], If is not in the top border
+                BToSend[(i-start)*n+j] += M_Slice_B[(i*n+j)-n];
+            }
+            if ((i*n+j)%n!=(n-1)) {  //M[i,j+1], If is not in the right border
+                BToSend[(i-start)*n+j] += M_Slice_B[(i*n+j)+1];
+            }
+            if (((n*n)-(i*n+j))>n) {  //M[i+1,j], If is not in the down border
+                BToSend[(i-start)*n+j] += M_Slice_B[(i*n+j)+n];
+            }
         }
     }
-    
+    string b = "";
+    for (int i = 0; i < rows; i++) { //process and calculate all
+        for (int j = 0; j < n; j++) {
+            b += boolToString(columnPrimesToSend[i*n+j]);
+            b += "-";
+        }
+    }
+    cout << "Bools obtained " << myid << ": " << b << endl;
+        string b2 = "";
+        for (int i = 0; i < rows; i++) { //process and calculate all
+            for (int j = 0; j < n; j++) {
+                b2 += to_string(static_cast<long long int>(BToSend[i * n + j])) + "-";
+            }
+        }
+        cout << "B obtained " << myid << ": " << b2 << endl;
+
 
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid == 0) {
