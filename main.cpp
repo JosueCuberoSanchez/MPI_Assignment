@@ -20,27 +20,18 @@ bool isPrime(int number);
 inline const char * const boolToString(bool b);
 
 int main(int argc,char **argv) {
-    int myid, numprocs, numthreads;
-    int n=0; //n entered by the user
-    double startwtime, startwInputtime, endwInputtime, endwtime;
+
     srand (time(NULL)); //initialize random seed
-    int  namelen;
+
+    int myid, numprocs, namelen, n, tp;
+    int* sendcounts_B, *displs_B, *M, *Q, *ColPrimes;
+    double startwtime, startwInputtime, endwInputtime, endwtime;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
-    // Arrays for the Scatter
-    int* sendcounts_B;
-    int* displs_B;
-    int* M;
-    int tp;
 
     MPI_Init(&argc,&argv);
-
     MPI_Comm_size(MPI_COMM_WORLD,&numprocs);
-
     MPI_Comm_rank(MPI_COMM_WORLD,&myid);
-
     MPI_Get_processor_name(processor_name,&namelen);
-
-    fprintf(stdout,"Proceso %d de %d en %s\n", myid, numprocs, processor_name);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -89,24 +80,20 @@ int main(int argc,char **argv) {
         //  It will have a row less of displacement, that in order to send the
         //  previous row as well.
         for (int i = 0 ; i < numprocs ; i++) {
-          sendcounts_B[i]= (n*n/numprocs) + (2*n);
-          displs_B[i] = (i*(n*n/numprocs))-n;
+            sendcounts_B[i]= (n*n/numprocs) + (2*n);
+            displs_B[i] = (i * (n * n / numprocs)) - n;
         }
         // Taking out one row for the borders of the matrix
         // Putting a displacement of 0 for the first row
-        sendcounts_B[0] -= n;
-        sendcounts_B[n-1] -= n;
         displs_B[0] = 0;
+        sendcounts_B[0] -= n;
+        sendcounts_B[numprocs-1] -= n;
     }
 
-    int Q[n];
+    Q = new int[n];
+    ColPrimes = new int[n*n];
     int P[n];
     int B[n*n];
-
-    //data structures used by processes to calculate and store temporal data
-    int columnPrimes[n]; //boolean vector to store if the ieth element is prime
-    int multiplicationResult; //result that will be used to create Q
-    int tpProcess; //total of primes for a specified process
 
     // Initialize Vector V with random ints from 0 to 5
     int V[n];
@@ -138,15 +125,14 @@ int main(int argc,char **argv) {
         M_Slice_B = new int[(n*n/numprocs) + n];
     }
     else {
-      M_Slice_B = new int[(n*n/numprocs) + (2*n)];
+        M_Slice_B = new int[(n*n/numprocs) + (2*n)];
     }
     if(M_Slice_B == NULL){
         cout << "Error de asignación de memoria" << endl;
         return 0;
     }
-
     MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, M_Slice_B, n*n, MPI_INT, 0, MPI_COMM_WORLD);
-    string rowss = "";
+    /*string rowss = "";
     if (myid==0 || myid==numprocs-1) {
         for (int i=0; i<n * n/numprocs + n; i++) {
             if (i%n==0 && i!=0) {
@@ -166,15 +152,15 @@ int main(int argc,char **argv) {
         }
         //cout << endl;
     }
-    cout << "Filas de M recibidas por " << myid << " :" << rowss << endl;
+    cout << "Filas de M recibidas por " << myid << " :" << rowss << endl;*/
 
     int rows = n/numprocs;
     //The next variables are built by processes and sent to root process. Variable row is sent too.
-    bool columnPrimesToSend[n*rows]; //array to send if the column number is a prime
-    int multiplicationResults[rows]; //results of array multiplication
+    int columnPrimesToSend[n*rows]; //array to send if the column number is a prime
+    int multiplicationResultsToSend[rows]; //results of array multiplication
     int BToSend[n*rows];
     for(int i=0;i<rows;i++){ //initialize results vector in order to do += later
-        multiplicationResults[i] = 0;
+        multiplicationResultsToSend[i] = 0;
     }
     for (int i=0;i<n*rows;i++) { //process and calculate all
         BToSend[i] = 0;
@@ -195,11 +181,11 @@ int main(int argc,char **argv) {
             number = M_Slice_B[i*n+j];
             if (isPrime(number)) {
                 tpToSend++;
-                columnPrimesToSend[(i-start)*n+j] = true;
+                columnPrimesToSend[(i-start)*n+j] = 1;
             } else {
-                columnPrimesToSend[(i-start)*n+j] = false;
+                columnPrimesToSend[(i-start)*n+j] = 0;
             }
-            multiplicationResults[i-start] += (number*V[j]);
+            multiplicationResultsToSend[i-start] += (number*V[j]);
             BToSend[(i-start)*n+j] += number;
             if (((i*n+j)%n)>0) { //M[i,j-1], If is not in a left border
                 BToSend[(i-start)*n+j] += M_Slice_B[(i*n+j)-1];
@@ -218,21 +204,24 @@ int main(int argc,char **argv) {
     string b = "";
     for (int i = 0; i < rows; i++) { //process and calculate all
         for (int j = 0; j < n; j++) {
-            b += boolToString(columnPrimesToSend[i*n+j]);
+            b += to_string(static_cast<long long int>(columnPrimesToSend[i*n+j]));
             b += "-";
         }
     }
     cout << "Bools obtained " << myid << ": " << b << endl;
-        string b2 = "";
-        for (int i = 0; i < rows; i++) { //process and calculate all
-            for (int j = 0; j < n; j++) {
-                b2 += to_string(static_cast<long long int>(BToSend[i * n + j])) + "-";
-            }
+    /*string b2 = "";
+    for (int i = 0; i < rows; i++) { //process and calculate all
+        for (int j = 0; j < n; j++) {
+            b2 += to_string(static_cast<long long int>(BToSend[i * n + j])) + "-";
         }
-        cout << "B obtained " << myid << ": " << b2 << endl;
+    }
+    cout << "B obtained " << myid << ": " << b2 << endl;*/
 
+    MPI_Reduce(&tpToSend, &tp, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Gather(columnPrimesToSend, n*rows, MPI_INT, ColPrimes, n*rows, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gather(BToSend, n*rows, MPI_INT, B, n*rows, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gather(multiplicationResultsToSend, rows, MPI_INT, Q, rows, MPI_INT, 0, MPI_COMM_WORLD);
 
-    MPI_Barrier(MPI_COMM_WORLD);
     if (myid == 0) {
       endwInputtime = MPI_Wtime();
       //Prepare output files, if n was greater than 100, otherwise use stdout
