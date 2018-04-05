@@ -42,6 +42,9 @@ int main(int argc,char **argv) {
         if(n%numprocs != 0){
             cout << "El numero de procesos debe ser multiplo de n" << endl;
             return 0;
+        } else if(n == 0){
+            cout << "Error de asignación de memoria" << endl;
+            return 0;
         }
 
         startwInputtime = MPI_Wtime();
@@ -51,7 +54,7 @@ int main(int argc,char **argv) {
         CP = new int[n*n];
         P = new int[n];
         B = new int[n*n];
-        if(M == NULL || Q == NULL || CP == NULL || Q == NULL || P == NULL || B == NULL){
+        if(M == 0 || Q == 0 || CP == 0 || P == 0 || B == 0){
             cout << "Error de asignación de memoria" << endl;
             return 0;
         }
@@ -65,12 +68,12 @@ int main(int argc,char **argv) {
 
         //Initialize the arrays for the Scatter
         sendcounts_B = new int[numprocs];
-        if(sendcounts_B == NULL){
+        if(sendcounts_B == 0){
             cout << "Error de asignación de memoria" << endl;
             return 0;
         }
         displs_B = new int[numprocs];
-        if(displs_B == NULL){
+        if(displs_B == 0){
             cout << "Error de asignación de memoria" << endl;
             return 0;
         }
@@ -95,7 +98,11 @@ int main(int argc,char **argv) {
     }
 
     // Initialize Vector V with random ints from 0 to 5
-    int V[n]; //Tal vez se pueda meter en donde se inician todos, en el if. Pero no se me dio..
+    int V[n];
+    if(V == 0){
+        cout << "Error de asignación de memoria" << endl;
+        return 0;
+    }
     if (myid == 0) {
         for(int i=0;i<n;i++){
             V[i] = rand() % 4 + 1;
@@ -116,7 +123,7 @@ int main(int argc,char **argv) {
     else {
         M_Slice_B = new int[(n*n/numprocs) + (2*n)];
     }
-    if(M_Slice_B == NULL){
+    if(M_Slice_B == 0 || n == 0 || V == 0){
         cout << "Error de asignación de memoria" << endl;
         return 0;
     }
@@ -126,9 +133,6 @@ int main(int argc,char **argv) {
     int columnPrimesToSend[n*rows]; //array to send if the column number is a prime
     int multiplicationResultsToSend[rows]; //results of array multiplication
     int BToSend[n*rows]; //rows to build B on root
-    for(int i=0;i<rows;i++){ //initialize results vector in order to do += later
-        multiplicationResultsToSend[i] = 0;
-    }
     int tpToSend = 0; //total prime numbers
     int number, limit, start;
     if(myid == 0) {
@@ -138,9 +142,21 @@ int main(int argc,char **argv) {
         limit = rows + 1;
         start = 1;
     }
+    if(rows == 0 || columnPrimesToSend == 0 || multiplicationResultsToSend == 0 ||
+            BToSend == 0 || limit == 0){
+        cout << "Error de asignación de memoria" << endl;
+        return 0;
+    }
+    for(int i=0;i<rows;i++){ //initialize results vector in order to do += later
+        multiplicationResultsToSend[i] = 0;
+    }
     for (int i=start;i<limit;i++) { //process and calculate all
         for (int j = 0; j < n; j++) {
             number = M_Slice_B[i*n+j];
+            if(number == 0){
+                cout << "Error de asignación de memoria" << endl;
+                return 0;
+            }
             if (isPrime(number)) {
                 tpToSend++;
                 columnPrimesToSend[(i-start)*n+j] = 1;
@@ -163,18 +179,6 @@ int main(int argc,char **argv) {
             }
         }
     }
-
-
-        string test = "";
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < n; ++j) {
-                test += to_string(static_cast<long long int>(BToSend[i*n+j]));
-                test += "-";
-            }
-            test += "###";
-        }
-        cout << "PROCESS  " << myid << ": " << test << endl;
-
 
     MPI_Reduce(&tpToSend, &tp, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Gather(columnPrimesToSend, n*rows, MPI_INT, CP, n*rows, MPI_INT, 0, MPI_COMM_WORLD);
