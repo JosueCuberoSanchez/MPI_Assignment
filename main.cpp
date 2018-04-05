@@ -123,7 +123,7 @@ int main(int argc,char **argv) {
     else {
         M_Slice_B = new int[(n*n/numprocs) + (2*n)];
     }
-    if(M_Slice_B == 0 || n == 0 || V == 0){
+    if(M_Slice_B == NULL || n == 0 || V == 0){
         cout << "Error de asignación de memoria" << endl;
         return 0;
     }
@@ -295,6 +295,18 @@ int main(int argc,char **argv) {
         cout << "====================" << endl <<  "FIN DE LA EJECUCIÓN" << endl << "====================" << endl;
         fflush( stdout );
     }
+
+    // Free memory used for the structures
+    if (myid == 0) { //Root Process
+      delete M;
+      delete Q;
+      delete CP;
+      delete P;
+      delete B;
+      delete sendcounts_B;
+      delete displs_B;
+    }
+    delete M_Slice_B;
 
     MPI_Finalize();
     return 0;
