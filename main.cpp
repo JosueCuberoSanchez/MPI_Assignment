@@ -158,11 +158,23 @@ int main(int argc,char **argv) {
             if ((i*n+j)%n!=(n-1)) {  //M[i,j+1], If is not in the right border
                 BToSend[(i-start)*n+j] += M_Slice_B[(i*n+j)+1];
             }
-            if (((n*n)-(i*n+j))>n) {  //M[i+1,j], If is not in the down border
+            if ((((n*n)-(i*n+j))>n)&&(myid != n-1)){  //M[i+1,j], If is not in the down border
                 BToSend[(i-start)*n+j] += M_Slice_B[(i*n+j)+n];
             }
         }
     }
+
+
+        string test = "";
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < n; ++j) {
+                test += to_string(static_cast<long long int>(BToSend[i*n+j]));
+                test += "-";
+            }
+            test += "###";
+        }
+        cout << "PROCESS  " << myid << ": " << test << endl;
+
 
     MPI_Reduce(&tpToSend, &tp, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Gather(columnPrimesToSend, n*rows, MPI_INT, CP, n*rows, MPI_INT, 0, MPI_COMM_WORLD);
