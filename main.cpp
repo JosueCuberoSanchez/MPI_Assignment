@@ -97,6 +97,9 @@ int main(int argc,char **argv) {
         sendcounts_B[numprocs-1] -= n;
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD); //other processes should wait for process 0 to set all structures
+
     // Initialize Vector V with random ints from 0 to 5
     int V[n];
     if(V == 0){
@@ -108,15 +111,11 @@ int main(int argc,char **argv) {
             V[i] = rand() % 4 + 1;
         }
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD); //other processes should wait for process 0 to set all structures
     MPI_Bcast(V, n, MPI_INT, 0, MPI_COMM_WORLD);
 
     // Size of dividing the matrix's dimension by the number of processes,
     // plus an extra row for the ones either on the top or bottom rows,
     // and plus two extra rows for the other rows
-    //cout << "Soy el PROCESO " << myid << endl;
     if (myid == 0 || myid == n-1) {
         M_Slice_B = new int[(n*n/numprocs) + n];
     }
@@ -127,6 +126,7 @@ int main(int argc,char **argv) {
         cout << "Error de asignación de memoria" << endl;
         return 0;
     }
+    
     MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, M_Slice_B, n*n, MPI_INT, 0, MPI_COMM_WORLD);
 
     int rows = n/numprocs; //number of rows per process
