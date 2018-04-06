@@ -31,7 +31,6 @@ int main(int argc,char **argv) {
     MPI_Comm_size(MPI_COMM_WORLD,&numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD,&myid);
     MPI_Get_processor_name(processor_name,&namelen);
-
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (myid == 0) {
@@ -96,7 +95,6 @@ int main(int argc,char **argv) {
         sendcounts_B[0] -= n;
         sendcounts_B[numprocs-1] -= n;
     }
-
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD); //other processes should wait for process 0 to set all structures
 
@@ -112,7 +110,6 @@ int main(int argc,char **argv) {
         }
     }
     MPI_Bcast(V, n, MPI_INT, 0, MPI_COMM_WORLD);
-
     // Size of dividing the matrix's dimension by the number of processes,
     // plus an extra row for the ones either on the top or bottom rows,
     // and plus two extra rows for the other rows
@@ -130,9 +127,9 @@ int main(int argc,char **argv) {
     MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, M_Slice_B, n*n, MPI_INT, 0, MPI_COMM_WORLD);
 
     int rows = n/numprocs; //number of rows per process
-    int columnPrimesToSend[n*rows]; //array to send if the column number is a prime
-    int multiplicationResultsToSend[rows]; //results of array multiplication
-    int BToSend[n*rows]; //rows to build B on root
+    int* columnPrimesToSend = new int[n*rows]; //array to send if the column number is a prime
+    int* multiplicationResultsToSend = new int[rows]; //results of array multiplication
+    int* BToSend = new int[n*rows]; //rows to build B on root
     int tpToSend = 0; //total prime numbers
     int number, limit, start;
     if(myid == 0) {
@@ -150,6 +147,7 @@ int main(int argc,char **argv) {
     for(int i=0;i<rows;i++){ //initialize results vector in order to do += later
         multiplicationResultsToSend[i] = 0;
     }
+
     for (int i=start;i<limit;i++) { //process and calculate all
         for (int j = 0; j < n; j++) {
             number = M_Slice_B[i*n+j];
