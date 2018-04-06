@@ -34,9 +34,13 @@ int main(int argc,char **argv) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (myid == 0) {
+
         startwtime = MPI_Wtime();
+
         cout << "Digite el n" << endl;
         cin >> n;
+
+        startwInputtime = MPI_Wtime();
 
         if(n%numprocs != 0){
             cout << "El numero de procesos debe ser multiplo de n" << endl;
@@ -45,8 +49,6 @@ int main(int argc,char **argv) {
             cout << "Error de asignación de memoria" << endl;
             return 0;
         }
-
-        startwInputtime = MPI_Wtime();
 
         M = new int[n*n];
         Q = new int[n];
