@@ -126,7 +126,7 @@ int main(int argc,char **argv) {
         cout << "Error de asignación de memoria" << endl;
         return 0;
     }
-    
+
     MPI_Scatterv(M, sendcounts_B, displs_B, MPI_INT, M_Slice_B, n*n, MPI_INT, 0, MPI_COMM_WORLD);
 
     int rows = n/numprocs; //number of rows per process
@@ -285,7 +285,7 @@ int main(int argc,char **argv) {
             ofQ.close();
             ofP.close();
             ofB.close();
-            cout << "La información de Matrices y Vectores se encuentra\nen archivos de texto, según sus nombres." << endl;
+            cout << "La información de Matrices y Vectores se encuentra\nen archivos de texto, según sus nombres." << endl << endl;
         }
 
         endwtime = MPI_Wtime();
