@@ -11,7 +11,7 @@
 using namespace std;
 
 /**
-* Josué Cubero (B4), Daniel González (B42991)
+* Josué Cubero (B42190), Daniel González (B42991)
 * Tarea Programada 1 - Arquitectura de Computadoras (CI-1323)
 * UCR - I Semestre 2018
 **/
